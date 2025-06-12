@@ -9,6 +9,7 @@
 #include <Arduino.h>
 #include <ESP32-HUB75-MatrixPanel-I2S-DMA.h>
 #include <Bounce2.h>
+#include "command_handler.h"
 
 /*-------------------------- HUB75E DMA Setup -----------------------------*/
 #define PANEL_RES_X 64      // Number of pixels wide of each INDIVIDUAL panel module. 
@@ -29,6 +30,7 @@ HUB75_I2S_CFG::i2s_pins _pins_x2 = {WF2_X2_R1_PIN, WF2_X2_G1_PIN, WF2_X2_B1_PIN,
 
 MatrixPanel_I2S_DMA *dma_display = nullptr;
 Bounce2::Button button = Bounce2::Button();
+CommandHandler* commandHandler = nullptr;
 
 // ROS Task management
 TaskHandle_t Task1;
@@ -46,17 +48,6 @@ IRAM_ATTR void toggleButtonPressed() {
    esp_deep_sleep_start();      // Sleep for e.g. 30 minutes
   // Do something here
 }
-
-#define START_BYTE 0xAA
-
-enum CommandType : uint8_t {
-    CMD_DRAW_PIXEL = 0x01,
-    CMD_FILL_SCREEN = 0x02,
-    CMD_DRAW_LINE = 0x03,
-    CMD_DRAW_RECT = 0x04,
-    CMD_DRAW_TEXT = 0x05,
-    CMD_CLEAR = 0x06,
-};
 
 void setupMatrix() {
     // Module configuration
@@ -79,60 +70,60 @@ void setupMatrix() {
     dma_display->begin();
     dma_display->setBrightness8(128); //0-255
     dma_display->clearScreen();
-}
-
-void handleCommand() {
-    if (Serial.available() < 3) return;
-
-    if (Serial.read() != START_BYTE) return;
-
-    uint8_t cmd = Serial.read();
-    uint8_t len = Serial.read();
-
-    while (Serial.available() < len) {
-        delay(1);
-    }
-
-    uint8_t data[64];
-    Serial.readBytes(data, len);
-
-    switch (cmd) {
-        case CMD_DRAW_PIXEL:
-            if (len >= 5) {
-                int x = data[0];
-                int y = data[1];
-                uint8_t r = data[2];
-                uint8_t g = data[3];
-                uint8_t b = data[4];
-                dma_display->drawPixelRGB888(x, y, r, g, b);
-            }
-            break;
-
-        case CMD_FILL_SCREEN:
-            if (len >= 3) {
-                uint8_t r = data[0];
-                uint8_t g = data[1];
-                uint8_t b = data[2];
-                dma_display->fillScreenRGB888(r, g, b);
-            }
-            break;
-
-        case CMD_CLEAR:
-            dma_display->clearScreen();
-            break;
-
-        // Add more cases for CMD_DRAW_LINE, CMD_DRAW_RECT, etc.
-
-        default:
-            break;
-    }
+    
+    // Initialize command handler
+    commandHandler = new CommandHandler(dma_display);
 }
 
 void setup() {
     Serial.begin(115200);
     setupMatrix();
+
+    // BUTTON SETUP 
+    button.attach( PUSH_BUTTON_PIN, INPUT ); // USE EXTERNAL PULL-UP
+    button.interval(5);   // DEBOUNCE INTERVAL IN MILLISECONDS
+    button.setPressedState(LOW); // INDICATE THAT THE LOW STATE CORRESPONDS TO PHYSICALLY PRESSING THE BUTTON
+    
+    /*-------------------- LEDC Controller --------------------*/
+    // Prepare and then apply the LEDC PWM timer configuration
+    ledc_timer_config_t ledc_timer = {
+        .speed_mode       = LEDC_LOW_SPEED_MODE,
+        .duty_resolution  = LEDC_TIMER_13_BIT ,
+        .timer_num        = LEDC_TIMER_0,
+        .freq_hz          = 4000,  // Set output frequency at 4 kHz
+        .clk_cfg          = LEDC_AUTO_CLK
+    };
+    ESP_ERROR_CHECK(ledc_timer_config(&ledc_timer));
+
+    // Prepare and then apply the LEDC PWM channel configuration
+    ledc_channel_config_t ledc_channel = {
+        .gpio_num       = RUN_LED_PIN,
+        .speed_mode     = LEDC_LOW_SPEED_MODE,
+        .channel        = LEDC_CHANNEL_0,
+        .intr_type      = LEDC_INTR_DISABLE,
+        .timer_sel      = LEDC_TIMER_0,
+        .duty           = 0, // Set duty to 0%
+        .hpoint         = 0
+    };
+    ESP_ERROR_CHECK(ledc_channel_config(&ledc_channel));  
+
+
+    // Start fading that LED
+    xTaskCreatePinnedToCore(
+      ledFadeTask,            /* Task function. */
+      "ledFadeTask",                 /* name of task. */
+      1000,                    /* Stack size of task */
+      NULL,                     /* parameter of the task */
+      1,                        /* priority of the task */
+      &Task1,                   /* Task handle to keep track of created task */
+      0);                       /* Core */  
 }
 
 void loop() {
-    handleCommand();
+    commandHandler->handleCommand();
+
+    button.update();
+    if ( button.pressed() ) {
+        toggleButtonPressed();
+    }
 }
