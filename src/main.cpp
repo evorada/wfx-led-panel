@@ -2,35 +2,35 @@
   #include "hd-wf1-esp32s2-config.h"
 #elif defined(WF2)
   #include "hd-wf2-esp32s3-config.h"
-#else
-  #error "Please define either WF1 or WF2"
 #endif
 
+#ifdef SIMULATOR
+#include "SimMatrixPanel.h"
+#include "SimSerial.h"
+#else
 #include <Arduino.h>
 #include <ESP32-HUB75-MatrixPanel-I2S-DMA.h>
 #include <Bounce2.h>
+#endif
 #include "command_handler.h"
 
 /*-------------------------- HUB75E DMA Setup -----------------------------*/
 #define PANEL_RES_X 64      // Number of pixels wide of each INDIVIDUAL panel module. 
-#define PANEL_RES_Y 32     // Number of pixels tall of each INDIVIDUAL panel module.
+#define PANEL_RES_Y 64     // Number of pixels tall of each INDIVIDUAL panel module.
 #define PANEL_CHAIN 1      // Total number of panels chained one to another
 
 
 #if defined(WF1)
-
 HUB75_I2S_CFG::i2s_pins _pins_x1 = {WF1_R1_PIN, WF1_G1_PIN, WF1_B1_PIN, WF1_R2_PIN, WF1_G2_PIN, WF1_B2_PIN, WF1_A_PIN, WF1_B_PIN, WF1_C_PIN, WF1_D_PIN, WF1_E_PIN, WF1_LAT_PIN, WF1_OE_PIN, WF1_CLK_PIN};
-
-#else
-
+#elif defined(WF2)
 HUB75_I2S_CFG::i2s_pins _pins_x1 = {WF2_X1_R1_PIN, WF2_X1_G1_PIN, WF2_X1_B1_PIN, WF2_X1_R2_PIN, WF2_X1_G2_PIN, WF2_X1_B2_PIN, WF2_A_PIN, WF2_B_PIN, WF2_C_PIN, WF2_D_PIN, WF2_X1_E_PIN, WF2_LAT_PIN, WF2_OE_PIN, WF2_CLK_PIN};
 HUB75_I2S_CFG::i2s_pins _pins_x2 = {WF2_X2_R1_PIN, WF2_X2_G1_PIN, WF2_X2_B1_PIN, WF2_X2_R2_PIN, WF2_X2_G2_PIN, WF2_X2_B2_PIN, WF2_A_PIN, WF2_B_PIN, WF2_C_PIN, WF2_D_PIN, WF2_X2_E_PIN, WF2_LAT_PIN, WF2_OE_PIN, WF2_CLK_PIN};
-
 #endif
 
 MatrixPanel_I2S_DMA *dma_display = nullptr;
+CommandHandler *commandHandler = nullptr;
+#ifndef SIMULATOR
 Bounce2::Button button = Bounce2::Button();
-CommandHandler* commandHandler = nullptr;
 
 // ROS Task management
 TaskHandle_t Task1;
@@ -48,8 +48,12 @@ IRAM_ATTR void toggleButtonPressed() {
    esp_deep_sleep_start();      // Sleep for e.g. 30 minutes
   // Do something here
 }
+#endif
 
 void setupMatrix() {
+#ifdef SIMULATOR
+    dma_display = new SimMatrixPanel(PANEL_RES_X, PANEL_RES_Y);
+#else
     // Module configuration
     HUB75_I2S_CFG mxconfig(
       PANEL_RES_X,   // module width
@@ -68,6 +72,7 @@ void setupMatrix() {
     // Display Setup
     dma_display = new MatrixPanel_I2S_DMA(mxconfig);
     dma_display->begin();
+#endif
     dma_display->setBrightness8(128); //0-255
     dma_display->clearScreen();
     
@@ -76,9 +81,10 @@ void setupMatrix() {
 }
 
 void setup() {
-    Serial.begin(115200);
+    // Serial.begin(115200);
     setupMatrix();
 
+#ifndef SIMULATOR
     // BUTTON SETUP 
     button.attach( PUSH_BUTTON_PIN, INPUT ); // USE EXTERNAL PULL-UP
     button.interval(5);   // DEBOUNCE INTERVAL IN MILLISECONDS
@@ -117,13 +123,17 @@ void setup() {
       1,                        /* priority of the task */
       &Task1,                   /* Task handle to keep track of created task */
       0);                       /* Core */  
+#endif
 }
 
 void loop() {
-    commandHandler->handleCommand();
-
+#ifdef SIMULATOR
+    dma_display->present();
+#else
     button.update();
     if ( button.pressed() ) {
         toggleButtonPressed();
     }
+#endif
+    commandHandler->handleCommand();
 }

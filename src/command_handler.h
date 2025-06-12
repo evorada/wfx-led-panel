@@ -1,7 +1,12 @@
 #pragma once
 
+#ifdef SIMULATOR
+#include "SimMatrixPanel.h"
+#include "SimSerial.h"
+#else
 #include <Arduino.h>
-#include "ESP32-HUB75-MatrixPanel-I2S-DMA.h"
+#include <ESP32-HUB75-MatrixPanel-I2S-DMA.h>
+#endif
 
 #define START_BYTE 0xAA
 
