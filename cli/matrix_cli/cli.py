@@ -1,8 +1,7 @@
-import serial
-import serial.tools.list_ports
 import click
 from rich.console import Console
 from rich.table import Table
+from .matrix import MatrixDisplay
 
 console = Console()
 
@@ -19,20 +18,6 @@ CMD_PRINT = 0x08
 CMD_SET_CURSOR = 0x09
 CMD_FILL_RECT = 0x0A
 
-def get_serial(port):
-    """Get a serial connection to the specified port."""
-    return serial.Serial(port, 115200, timeout=1)
-
-def send_command(port, cmd, data):
-    """Send a command to the matrix display."""
-    with get_serial(port) as ser:
-        # Send start byte, command, and data length
-        ser.write(bytes([START_BYTE, cmd, len(data)]))
-        # Send data
-        ser.write(data)
-        # Wait for any response
-        ser.flush()
-
 @click.group()
 def cli():
     """Matrix CLI - Control LED matrix displays via serial."""
@@ -41,14 +26,14 @@ def cli():
 @cli.command()
 def ports():
     """List available serial ports."""
-    ports = serial.tools.list_ports.comports()
+    ports = MatrixDisplay.list_ports()
     table = Table(title="Available Serial Ports")
     table.add_column("Port", style="cyan")
     table.add_column("Description", style="green")
     table.add_column("Hardware ID", style="yellow")
     
-    for port in ports:
-        table.add_row(port.device, port.description, port.hwid)
+    for port, desc, hwid in ports:
+        table.add_row(port, desc, hwid)
     
     console.print(table)
 
@@ -57,16 +42,26 @@ def ports():
 @click.argument('brightness', type=click.IntRange(0, 255))
 def brightness(port, brightness):
     """Set display brightness (0-255)."""
-    send_command(port, CMD_SET_BRIGHTNESS, bytes([brightness]))
-    console.print(f"[green]Brightness set to {brightness}")
+    try:
+        matrix = MatrixDisplay(port)
+        matrix.set_brightness(brightness)
+        console.print(f"[green]Brightness set to {brightness}")
+    except ValueError as e:
+        console.print(f"[red]Error: {e}")
+    except Exception as e:
+        console.print(f"[red]Error: {e}")
 
 @cli.command()
 @click.option('--port', required=True, help='Serial port (e.g., /dev/ttyUSB0)')
 @click.argument('text')
 def print_text(port, text):
     """Print text at current cursor position."""
-    send_command(port, CMD_PRINT, text.encode())
-    console.print(f"[green]Printed: {text}")
+    try:
+        matrix = MatrixDisplay(port)
+        matrix.print_text(text)
+        console.print(f"[green]Printed: {text}")
+    except Exception as e:
+        console.print(f"[red]Error: {e}")
 
 @cli.command()
 @click.option('--port', required=True, help='Serial port (e.g., /dev/ttyUSB0)')
@@ -74,8 +69,12 @@ def print_text(port, text):
 @click.argument('y', type=int)
 def cursor(port, x, y):
     """Set cursor position."""
-    send_command(port, CMD_SET_CURSOR, bytes([x, y]))
-    console.print(f"[green]Cursor set to ({x}, {y})")
+    try:
+        matrix = MatrixDisplay(port)
+        matrix.set_cursor(x, y)
+        console.print(f"[green]Cursor set to ({x}, {y})")
+    except Exception as e:
+        console.print(f"[red]Error: {e}")
 
 @cli.command()
 @click.option('--port', required=True, help='Serial port (e.g., /dev/ttyUSB0)')
@@ -84,8 +83,14 @@ def cursor(port, x, y):
 @click.argument('b', type=click.IntRange(0, 255))
 def fill(port, r, g, b):
     """Fill entire screen with color."""
-    send_command(port, CMD_FILL_SCREEN, bytes([r, g, b]))
-    console.print(f"[green]Screen filled with RGB({r}, {g}, {b})")
+    try:
+        matrix = MatrixDisplay(port)
+        matrix.fill_screen(r, g, b)
+        console.print(f"[green]Screen filled with RGB({r}, {g}, {b})")
+    except ValueError as e:
+        console.print(f"[red]Error: {e}")
+    except Exception as e:
+        console.print(f"[red]Error: {e}")
 
 @cli.command()
 @click.option('--port', required=True, help='Serial port (e.g., /dev/ttyUSB0)')
@@ -98,15 +103,25 @@ def fill(port, r, g, b):
 @click.argument('b', type=click.IntRange(0, 255))
 def rect(port, x, y, width, height, r, g, b):
     """Fill rectangle with color."""
-    send_command(port, CMD_FILL_RECT, bytes([x, y, width, height, r, g, b]))
-    console.print(f"[green]Rectangle filled at ({x}, {y}) {width}x{height} with RGB({r}, {g}, {b})")
+    try:
+        matrix = MatrixDisplay(port)
+        matrix.fill_rect(x, y, width, height, r, g, b)
+        console.print(f"[green]Rectangle filled at ({x}, {y}) {width}x{height} with RGB({r}, {g}, {b})")
+    except ValueError as e:
+        console.print(f"[red]Error: {e}")
+    except Exception as e:
+        console.print(f"[red]Error: {e}")
 
 @cli.command()
 @click.option('--port', required=True, help='Serial port (e.g., /dev/ttyUSB0)')
 def clear(port):
     """Clear the screen."""
-    send_command(port, CMD_CLEAR, bytes([]))
-    console.print("[green]Screen cleared")
+    try:
+        matrix = MatrixDisplay(port)
+        matrix.clear()
+        console.print("[green]Screen cleared")
+    except Exception as e:
+        console.print(f"[red]Error: {e}")
 
 def main():
     cli() 
