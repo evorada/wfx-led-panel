@@ -12,6 +12,10 @@ enum CommandType : uint8_t {
     CMD_DRAW_RECT = 0x04,
     CMD_DRAW_TEXT = 0x05,
     CMD_CLEAR = 0x06,
+    CMD_SET_BRIGHTNESS = 0x07,
+    CMD_PRINT = 0x08,
+    CMD_SET_CURSOR = 0x09,
+    CMD_FILL_RECT = 0x0A,
 };
 
 class CommandHandler {

@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "matrix-cli"
+version = "0.1.0"
+description = "CLI tool for controlling LED matrix display"
+authors = ["Your Name <your.email@example.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+click = "^8.1.7"
+pyserial = "^3.5"
+rich = "^13.7.0"
+
+[tool.poetry.scripts]
+matrix-cli = "matrix_cli.cli:main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api" 

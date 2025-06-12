@@ -42,6 +42,43 @@ void CommandHandler::handleCommand() {
             dma_display->clearScreen();
             break;
 
+        case CMD_SET_BRIGHTNESS:
+            if (len >= 1) {
+                uint8_t brightness = data[0];
+                dma_display->setBrightness8(brightness);
+            }
+            break;
+
+        case CMD_PRINT:
+            if (len >= 1) {
+                // Convert the data to a null-terminated string
+                char text[65] = {0};  // 64 chars + null terminator
+                memcpy(text, data, len);
+                dma_display->print(text);
+            }
+            break;
+
+        case CMD_SET_CURSOR:
+            if (len >= 2) {
+                int x = data[0];
+                int y = data[1];
+                dma_display->setCursor(x, y);
+            }
+            break;
+
+        case CMD_FILL_RECT:
+            if (len >= 7) {
+                int x = data[0];
+                int y = data[1];
+                int w = data[2];
+                int h = data[3];
+                uint8_t r = data[4];
+                uint8_t g = data[5];
+                uint8_t b = data[6];
+                dma_display->fillRect(x, y, w, h, dma_display->color565(r, g, b));
+            }
+            break;
+
         default:
             break;
     }
