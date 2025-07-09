@@ -17,6 +17,8 @@ CMD_SET_BRIGHTNESS = 0x07
 CMD_PRINT = 0x08
 CMD_SET_CURSOR = 0x09
 CMD_FILL_RECT = 0x0A
+CMD_DRAW_FAST_VLINE = 0x0B
+CMD_DRAW_FAST_HLINE = 0x0C
 
 @click.group()
 @click.option('--port', required=True, help='Serial port (e.g., /dev/ttyUSB0)')
@@ -39,6 +41,117 @@ def ports():
         table.add_row(port, desc, hwid)
     
     console.print(table)
+
+@cli.command()
+@click.argument('x', type=int)
+@click.argument('y', type=int)
+@click.argument('r', type=click.IntRange(0, 255))
+@click.argument('g', type=click.IntRange(0, 255))
+@click.argument('b', type=click.IntRange(0, 255))
+@click.pass_context
+def pixel(ctx, x, y, r, g, b):
+    """Draw a single pixel at (x, y) with RGB color."""
+    try:
+        matrix = MatrixDisplay(ctx.obj['port'])
+        success, message = matrix.draw_pixel(x, y, r, g, b)
+        if success:
+            console.print(f"[green]✓ {message}")
+        else:
+            console.print(f"[red]✗ Error: {message}")
+    except ValueError as e:
+        console.print(f"[red]Error: {e}")
+    except Exception as e:
+        console.print(f"[red]Error: {e}")
+
+@cli.command()
+@click.argument('x0', type=int)
+@click.argument('y0', type=int)
+@click.argument('x1', type=int)
+@click.argument('y1', type=int)
+@click.argument('r', type=click.IntRange(0, 255))
+@click.argument('g', type=click.IntRange(0, 255))
+@click.argument('b', type=click.IntRange(0, 255))
+@click.pass_context
+def line(ctx, x0, y0, x1, y1, r, g, b):
+    """Draw a line from (x0, y0) to (x1, y1) with RGB color."""
+    try:
+        matrix = MatrixDisplay(ctx.obj['port'])
+        success, message = matrix.draw_line(x0, y0, x1, y1, r, g, b)
+        if success:
+            console.print(f"[green]✓ {message}")
+        else:
+            console.print(f"[red]✗ Error: {message}")
+    except ValueError as e:
+        console.print(f"[red]Error: {e}")
+    except Exception as e:
+        console.print(f"[red]Error: {e}")
+
+@cli.command()
+@click.argument('x', type=int)
+@click.argument('y', type=int)
+@click.argument('width', type=int)
+@click.argument('height', type=int)
+@click.argument('r', type=click.IntRange(0, 255))
+@click.argument('g', type=click.IntRange(0, 255))
+@click.argument('b', type=click.IntRange(0, 255))
+@click.pass_context
+def draw_rect(ctx, x, y, width, height, r, g, b):
+    """Draw rectangle outline at (x, y) with size width x height and RGB color."""
+    try:
+        matrix = MatrixDisplay(ctx.obj['port'])
+        success, message = matrix.draw_rect(x, y, width, height, r, g, b)
+        if success:
+            console.print(f"[green]✓ {message}")
+        else:
+            console.print(f"[red]✗ Error: {message}")
+    except ValueError as e:
+        console.print(f"[red]Error: {e}")
+    except Exception as e:
+        console.print(f"[red]Error: {e}")
+
+@cli.command()
+@click.argument('x', type=int)
+@click.argument('y', type=int)
+@click.argument('height', type=int)
+@click.argument('r', type=click.IntRange(0, 255))
+@click.argument('g', type=click.IntRange(0, 255))
+@click.argument('b', type=click.IntRange(0, 255))
+@click.pass_context
+def vline(ctx, x, y, height, r, g, b):
+    """Draw fast vertical line at x from y to y+height with RGB color."""
+    try:
+        matrix = MatrixDisplay(ctx.obj['port'])
+        success, message = matrix.draw_fast_vline(x, y, height, r, g, b)
+        if success:
+            console.print(f"[green]✓ {message}")
+        else:
+            console.print(f"[red]✗ Error: {message}")
+    except ValueError as e:
+        console.print(f"[red]Error: {e}")
+    except Exception as e:
+        console.print(f"[red]Error: {e}")
+
+@cli.command()
+@click.argument('x', type=int)
+@click.argument('y', type=int)
+@click.argument('width', type=int)
+@click.argument('r', type=click.IntRange(0, 255))
+@click.argument('g', type=click.IntRange(0, 255))
+@click.argument('b', type=click.IntRange(0, 255))
+@click.pass_context
+def hline(ctx, x, y, width, r, g, b):
+    """Draw fast horizontal line at y from x to x+width with RGB color."""
+    try:
+        matrix = MatrixDisplay(ctx.obj['port'])
+        success, message = matrix.draw_fast_hline(x, y, width, r, g, b)
+        if success:
+            console.print(f"[green]✓ {message}")
+        else:
+            console.print(f"[red]✗ Error: {message}")
+    except ValueError as e:
+        console.print(f"[red]Error: {e}")
+    except Exception as e:
+        console.print(f"[red]Error: {e}")
 
 @cli.command()
 @click.argument('brightness', type=click.IntRange(0, 255))

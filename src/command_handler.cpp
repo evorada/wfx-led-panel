@@ -60,6 +60,38 @@ void CommandHandler::handleCommand() {
             }
             break;
 
+        case CMD_DRAW_LINE:
+            if (len >= 7) {
+                int x0 = data[0];
+                int y0 = data[1];
+                int x1 = data[2];
+                int y1 = data[3];
+                uint8_t r = data[4];
+                uint8_t g = data[5];
+                uint8_t b = data[6];
+                dma_display->drawLine(x0, y0, x1, y1, dma_display->color565(r, g, b));
+                sendAck(cmd, true, "Line drawn");
+            } else {
+                sendAck(cmd, false, "Invalid line data");
+            }
+            break;
+
+        case CMD_DRAW_RECT:
+            if (len >= 7) {
+                int x = data[0];
+                int y = data[1];
+                int w = data[2];
+                int h = data[3];
+                uint8_t r = data[4];
+                uint8_t g = data[5];
+                uint8_t b = data[6];
+                dma_display->drawRect(x, y, w, h, dma_display->color565(r, g, b));
+                sendAck(cmd, true, "Rectangle drawn");
+            } else {
+                sendAck(cmd, false, "Invalid rectangle data");
+            }
+            break;
+
         case CMD_CLEAR:
             dma_display->clearScreen();
             sendAck(cmd, true, "Screen cleared");
@@ -111,6 +143,36 @@ void CommandHandler::handleCommand() {
                 sendAck(cmd, true, "Rectangle filled");
             } else {
                 sendAck(cmd, false, "Invalid rectangle data");
+            }
+            break;
+
+        case CMD_DRAW_FAST_VLINE:
+            if (len >= 6) {
+                int x = data[0];
+                int y = data[1];
+                int h = data[2];
+                uint8_t r = data[3];
+                uint8_t g = data[4];
+                uint8_t b = data[5];
+                dma_display->drawFastVLine(x, y, h, dma_display->color565(r, g, b));
+                sendAck(cmd, true, "Vertical line drawn");
+            } else {
+                sendAck(cmd, false, "Invalid vertical line data");
+            }
+            break;
+
+        case CMD_DRAW_FAST_HLINE:
+            if (len >= 6) {
+                int x = data[0];
+                int y = data[1];
+                int w = data[2];
+                uint8_t r = data[3];
+                uint8_t g = data[4];
+                uint8_t b = data[5];
+                dma_display->drawFastHLine(x, y, w, dma_display->color565(r, g, b));
+                sendAck(cmd, true, "Horizontal line drawn");
+            } else {
+                sendAck(cmd, false, "Invalid horizontal line data");
             }
             break;
 

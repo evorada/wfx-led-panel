@@ -22,6 +22,8 @@ class MatrixDisplay:
     CMD_PRINT = 0x08
     CMD_SET_CURSOR = 0x09
     CMD_FILL_RECT = 0x0A
+    CMD_DRAW_FAST_VLINE = 0x0B
+    CMD_DRAW_FAST_HLINE = 0x0C
 
     def __init__(self, port: str, baudrate: int = 115200):
         """Initialize the matrix display client.
@@ -102,6 +104,97 @@ class MatrixDisplay:
             # Wait for acknowledgment
             ser.flush()
             return self._wait_for_ack(ser, cmd)
+
+    def draw_pixel(self, x: int, y: int, r: int, g: int, b: int) -> Tuple[bool, str]:
+        """Draw a single pixel.
+        
+        Args:
+            x: X coordinate
+            y: Y coordinate
+            r: Red component (0-255)
+            g: Green component (0-255)
+            b: Blue component (0-255)
+            
+        Returns:
+            Tuple of (success, message)
+        """
+        if not all(0 <= c <= 255 for c in (r, g, b)):
+            raise ValueError("Color components must be between 0 and 255")
+        return self._send_command(self.CMD_DRAW_PIXEL, bytes([x, y, r, g, b]))
+
+    def draw_line(self, x0: int, y0: int, x1: int, y1: int, r: int, g: int, b: int) -> Tuple[bool, str]:
+        """Draw a line from (x0, y0) to (x1, y1).
+        
+        Args:
+            x0: Start X coordinate
+            y0: Start Y coordinate
+            x1: End X coordinate
+            y1: End Y coordinate
+            r: Red component (0-255)
+            g: Green component (0-255)
+            b: Blue component (0-255)
+            
+        Returns:
+            Tuple of (success, message)
+        """
+        if not all(0 <= c <= 255 for c in (r, g, b)):
+            raise ValueError("Color components must be between 0 and 255")
+        return self._send_command(self.CMD_DRAW_LINE, bytes([x0, y0, x1, y1, r, g, b]))
+
+    def draw_rect(self, x: int, y: int, width: int, height: int, r: int, g: int, b: int) -> Tuple[bool, str]:
+        """Draw rectangle outline.
+        
+        Args:
+            x: X coordinate
+            y: Y coordinate
+            width: Rectangle width
+            height: Rectangle height
+            r: Red component (0-255)
+            g: Green component (0-255)
+            b: Blue component (0-255)
+            
+        Returns:
+            Tuple of (success, message)
+        """
+        if not all(0 <= c <= 255 for c in (r, g, b)):
+            raise ValueError("Color components must be between 0 and 255")
+        return self._send_command(self.CMD_DRAW_RECT, bytes([x, y, width, height, r, g, b]))
+
+    def draw_fast_vline(self, x: int, y: int, height: int, r: int, g: int, b: int) -> Tuple[bool, str]:
+        """Draw fast vertical line.
+        
+        Args:
+            x: X coordinate
+            y: Y coordinate
+            height: Line height
+            r: Red component (0-255)
+            g: Green component (0-255)
+            b: Blue component (0-255)
+            
+        Returns:
+            Tuple of (success, message)
+        """
+        if not all(0 <= c <= 255 for c in (r, g, b)):
+            raise ValueError("Color components must be between 0 and 255")
+        return self._send_command(self.CMD_DRAW_FAST_VLINE, bytes([x, y, height, r, g, b]))
+
+    def draw_fast_hline(self, x: int, y: int, width: int, r: int, g: int, b: int) -> Tuple[bool, str]:
+        """Draw fast horizontal line.
+        
+        Args:
+            x: X coordinate
+            y: Y coordinate
+            width: Line width
+            r: Red component (0-255)
+            g: Green component (0-255)
+            b: Blue component (0-255)
+            
+        Returns:
+            Tuple of (success, message)
+        """
+        if not all(0 <= c <= 255 for c in (r, g, b)):
+            raise ValueError("Color components must be between 0 and 255")
+        return self._send_command(self.CMD_DRAW_FAST_HLINE, bytes([x, y, width, r, g, b]))
 
     def set_brightness(self, brightness: int) -> Tuple[bool, str]:
         """Set display brightness.
