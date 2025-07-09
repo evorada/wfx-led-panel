@@ -11,6 +11,7 @@ class MatrixDisplay:
     
     # Command bytes
     START_BYTE = 0xAA
+    ACK_BYTE = 0xAC
     CMD_DRAW_PIXEL = 0x01
     CMD_FILL_SCREEN = 0x02
     CMD_DRAW_LINE = 0x03
@@ -32,61 +33,128 @@ class MatrixDisplay:
         self.port = port
         self.baudrate = baudrate
 
-    def _send_command(self, cmd: int, data: bytes) -> None:
-        """Send a command to the matrix display.
+    def _wait_for_ack(self, ser: serial.Serial, expected_cmd: int) -> Tuple[bool, str]:
+        """Wait for and parse acknowledgment response.
+        
+        Args:
+            ser: Serial connection
+            expected_cmd: Expected command that was sent
+            
+        Returns:
+            Tuple of (success, message)
+        """
+        try:
+            # Wait for start byte
+            if ser.read(1) != bytes([self.START_BYTE]):
+                return False, "Invalid response start byte"
+            
+            # Check for ACK byte
+            if ser.read(1) != bytes([self.ACK_BYTE]):
+                return False, "Invalid ACK byte"
+            
+            # Read command byte
+            cmd_bytes = ser.read(1)
+            if not cmd_bytes:
+                return False, "No command byte received"
+            cmd = cmd_bytes[0]
+            
+            # Read success byte
+            success_bytes = ser.read(1)
+            if not success_bytes:
+                return False, "No success byte received"
+            success = success_bytes[0] == 0x01
+            
+            # Read message length
+            msg_len_bytes = ser.read(1)
+            if not msg_len_bytes:
+                return False, "No message length received"
+            msg_len = msg_len_bytes[0]
+            
+            # Read message if present
+            message = ""
+            if msg_len > 0:
+                message_bytes = ser.read(msg_len)
+                if len(message_bytes) == msg_len:
+                    message = message_bytes.decode('utf-8', errors='ignore')
+                else:
+                    return False, "Incomplete message received"
+            
+            return success, message
+            
+        except Exception as e:
+            return False, f"Error reading ACK: {str(e)}"
+
+    def _send_command(self, cmd: int, data: bytes) -> Tuple[bool, str]:
+        """Send a command to the matrix display and wait for acknowledgment.
         
         Args:
             cmd: Command byte
             data: Command data
+            
+        Returns:
+            Tuple of (success, message)
         """
-        with serial.Serial(self.port, self.baudrate, timeout=1) as ser:
+        with serial.Serial(self.port, self.baudrate, timeout=2) as ser:
             # Send start byte, command, and data length
             ser.write(bytes([self.START_BYTE, cmd, len(data)]))
             # Send data
             ser.write(data)
-            # Wait for any response
+            # Wait for acknowledgment
             ser.flush()
+            return self._wait_for_ack(ser, cmd)
 
-    def set_brightness(self, brightness: int) -> None:
+    def set_brightness(self, brightness: int) -> Tuple[bool, str]:
         """Set display brightness.
         
         Args:
             brightness: Brightness value (0-255)
+            
+        Returns:
+            Tuple of (success, message)
         """
         if not 0 <= brightness <= 255:
             raise ValueError("Brightness must be between 0 and 255")
-        self._send_command(self.CMD_SET_BRIGHTNESS, bytes([brightness]))
+        return self._send_command(self.CMD_SET_BRIGHTNESS, bytes([brightness]))
 
-    def print_text(self, text: str) -> None:
+    def print_text(self, text: str) -> Tuple[bool, str]:
         """Print text at current cursor position.
         
         Args:
             text: Text to print
+            
+        Returns:
+            Tuple of (success, message)
         """
-        self._send_command(self.CMD_PRINT, text.encode())
+        return self._send_command(self.CMD_PRINT, text.encode())
 
-    def set_cursor(self, x: int, y: int) -> None:
+    def set_cursor(self, x: int, y: int) -> Tuple[bool, str]:
         """Set cursor position.
         
         Args:
             x: X coordinate
             y: Y coordinate
+            
+        Returns:
+            Tuple of (success, message)
         """
-        self._send_command(self.CMD_SET_CURSOR, bytes([x, y]))
+        return self._send_command(self.CMD_SET_CURSOR, bytes([x, y]))
 
-    def fill_screen(self, r: int, g: int, b: int) -> None:
+    def fill_screen(self, r: int, g: int, b: int) -> Tuple[bool, str]:
         """Fill entire screen with color.
         
         Args:
             r: Red component (0-255)
             g: Green component (0-255)
             b: Blue component (0-255)
+            
+        Returns:
+            Tuple of (success, message)
         """
         if not all(0 <= c <= 255 for c in (r, g, b)):
             raise ValueError("Color components must be between 0 and 255")
-        self._send_command(self.CMD_FILL_SCREEN, bytes([r, g, b]))
+        return self._send_command(self.CMD_FILL_SCREEN, bytes([r, g, b]))
 
-    def fill_rect(self, x: int, y: int, width: int, height: int, r: int, g: int, b: int) -> None:
+    def fill_rect(self, x: int, y: int, width: int, height: int, r: int, g: int, b: int) -> Tuple[bool, str]:
         """Fill rectangle with color.
         
         Args:
@@ -97,14 +165,21 @@ class MatrixDisplay:
             r: Red component (0-255)
             g: Green component (0-255)
             b: Blue component (0-255)
+            
+        Returns:
+            Tuple of (success, message)
         """
         if not all(0 <= c <= 255 for c in (r, g, b)):
             raise ValueError("Color components must be between 0 and 255")
-        self._send_command(self.CMD_FILL_RECT, bytes([x, y, width, height, r, g, b]))
+        return self._send_command(self.CMD_FILL_RECT, bytes([x, y, width, height, r, g, b]))
 
-    def clear(self) -> None:
-        """Clear the screen."""
-        self._send_command(self.CMD_CLEAR, bytes([]))
+    def clear(self) -> Tuple[bool, str]:
+        """Clear the screen.
+        
+        Returns:
+            Tuple of (success, message)
+        """
+        return self._send_command(self.CMD_CLEAR, bytes([]))
 
     @staticmethod
     def list_ports() -> List[Tuple[str, str, str]]:

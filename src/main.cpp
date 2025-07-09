@@ -59,21 +59,16 @@ void setupMatrix() {
       PANEL_RES_X,   // module width
       PANEL_RES_Y,   // module height
       PANEL_CHAIN,   // Chain length
-      _pins_x1       // pin mapping for port X1
+      _pins_x2       // pin mapping for port X1
     );
-    mxconfig.i2sspeed = HUB75_I2S_CFG::HZ_20M;  
-    mxconfig.latch_blanking = 4;
-    //mxconfig.clkphase = false;
-    //mxconfig.driver = HUB75_I2S_CFG::FM6126A;
-    //mxconfig.double_buff = false;  
-    //mxconfig.min_refresh_rate = 30;
-
+    mxconfig.i2sspeed = HUB75_I2S_CFG::HZ_10M;  
+    mxconfig.latch_blanking = 8;
 
     // Display Setup
     dma_display = new MatrixPanel_I2S_DMA(mxconfig);
     dma_display->begin();
 #endif
-    dma_display->setBrightness8(128); //0-255
+    dma_display->setBrightness8(32); //0-255
     dma_display->clearScreen();
     
     // Initialize command handler
@@ -81,7 +76,7 @@ void setupMatrix() {
 }
 
 void setup() {
-    // Serial.begin(115200);
+    Serial.begin(115200);
     setupMatrix();
 
 #ifndef SIMULATOR

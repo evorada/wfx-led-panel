@@ -15,8 +15,8 @@
 #define WF2_X1_R2_PIN 3
 #define WF2_X1_G1_PIN 6
 #define WF2_X1_G2_PIN 7
-#define WF2_X1_B1_PIN 10
-#define WF2_X1_B2_PIN 11
+#define WF2_X1_B1_PIN 11
+#define WF2_X1_B2_PIN 10
 #define WF2_X1_E_PIN 21
 
 #define WF2_X2_R1_PIN 4
@@ -25,7 +25,7 @@
 #define WF2_X2_G2_PIN 9
 #define WF2_X2_B1_PIN 12
 #define WF2_X2_B2_PIN 13
-#define WF2_X2_E_PIN -1        // Currently unknown, so X2 port will not work (yet) with 1/32 scan panels
+#define WF2_X2_E_PIN 21
 
 #define WF2_A_PIN 39
 #define WF2_B_PIN 38

@@ -30,4 +30,5 @@ public:
 
 private:
     MatrixPanel_I2S_DMA* dma_display;
+    void sendAck(uint8_t cmd, bool success, const char* message = nullptr);
 }; 
