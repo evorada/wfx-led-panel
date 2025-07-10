@@ -1,6 +1,17 @@
 #include "command_handler.h"
 
-CommandHandler::CommandHandler(MatrixPanel_I2S_DMA* display) : dma_display(display) {}
+CommandHandler::CommandHandler(MatrixPanel_I2S_DMA* display) : dma_display(display) {
+    // Initialize all sprites as inactive
+    for (int i = 0; i < MAX_SPRITES; i++) {
+        sprites[i].active = false;
+        sprites[i].x = 0;
+        sprites[i].y = 0;
+        sprites[i].width = 0;
+        sprites[i].height = 0;
+        sprites[i].last_x = 0;
+        sprites[i].last_y = 0;
+    }
+}
 
 void CommandHandler::sendAck(uint8_t cmd, bool success, const char* message) {
     // Send acknowledgment packet: START_BYTE + ACK_BYTE + CMD + SUCCESS + optional message
@@ -239,8 +250,185 @@ void CommandHandler::handleCommand() {
             }
             break;
 
+        case CMD_SET_SPRITE:
+            if (len >= 4) {
+                uint8_t sprite_id = data[0];
+                int x = data[1];
+                int y = data[2];
+                int width = data[3];
+                int height = data[4];
+                
+                if (sprite_id >= MAX_SPRITES) {
+                    sendAck(cmd, false, "Invalid sprite ID");
+                    break;
+                }
+                
+                int payload_size = width * height * 2; // RGB565 = 2 bytes per pixel
+                if (payload_size > MAX_SPRITE_SIZE) {
+                    sendAck(cmd, false, "Sprite too large");
+                    break;
+                }
+                
+                // Clear the sprite area if it was previously active
+                if (sprites[sprite_id].active) {
+                    clearSpriteArea(sprite_id);
+                }
+                
+                // Read sprite data with flow control
+                int total_read = 0;
+                int timeout_ms = 5000;
+                unsigned long start_time = millis();
+                uint8_t pixel_buffer[2];
+                
+                while (total_read < payload_size) {
+                    if (millis() - start_time > timeout_ms) {
+                        sendAck(cmd, false, "Sprite data read timeout");
+                        break;
+                    }
+                    
+                    if (Serial.available() < 2) {
+                        if (Serial.available() > 0) {
+                            Serial.flush();
+                        }
+                        delay(1);
+                        continue;
+                    }
+                    
+                    int read_size = Serial.readBytes(pixel_buffer, 2);
+                    if (read_size == 2) {
+                        sprites[sprite_id].data[total_read] = pixel_buffer[0];
+                        sprites[sprite_id].data[total_read + 1] = pixel_buffer[1];
+                        total_read += 2;
+                        
+                        if ((total_read / 2) % 64 == 0 && total_read < payload_size - 2) {
+                            Serial.write(0xFF);
+                        }
+                    }
+                }
+                
+                // Set sprite properties
+                sprites[sprite_id].active = true;
+                sprites[sprite_id].x = x;
+                sprites[sprite_id].y = y;
+                sprites[sprite_id].width = width;
+                sprites[sprite_id].height = height;
+                sprites[sprite_id].last_x = x;
+                sprites[sprite_id].last_y = y;
+                
+                sendAck(cmd, true, "Sprite set");
+            } else {
+                sendAck(cmd, false, "Invalid sprite data");
+            }
+            break;
+
+        case CMD_CLEAR_SPRITE:
+            if (len >= 1) {
+                uint8_t sprite_id = data[0];
+                if (sprite_id >= MAX_SPRITES) {
+                    sendAck(cmd, false, "Invalid sprite ID");
+                    break;
+                }
+                
+                if (sprites[sprite_id].active) {
+                    clearSpriteArea(sprite_id);
+                    sprites[sprite_id].active = false;
+                    sendAck(cmd, true, "Sprite cleared");
+                } else {
+                    sendAck(cmd, false, "Sprite not active");
+                }
+            } else {
+                sendAck(cmd, false, "Invalid sprite ID");
+            }
+            break;
+
+        case CMD_DRAW_SPRITE:
+            if (len >= 3) {
+                uint8_t sprite_id = data[0];
+                int x = data[1];
+                int y = data[2];
+                
+                if (sprite_id >= MAX_SPRITES) {
+                    sendAck(cmd, false, "Invalid sprite ID");
+                    break;
+                }
+                
+                if (!sprites[sprite_id].active) {
+                    sendAck(cmd, false, "Sprite not active");
+                    break;
+                }
+                
+                drawSpriteAt(sprite_id, x, y);
+                sendAck(cmd, true, "Sprite drawn");
+            } else {
+                sendAck(cmd, false, "Invalid draw sprite data");
+            }
+            break;
+
+        case CMD_MOVE_SPRITE:
+            if (len >= 3) {
+                uint8_t sprite_id = data[0];
+                int x = data[1];
+                int y = data[2];
+                
+                if (sprite_id >= MAX_SPRITES) {
+                    sendAck(cmd, false, "Invalid sprite ID");
+                    break;
+                }
+                
+                if (!sprites[sprite_id].active) {
+                    sendAck(cmd, false, "Sprite not active");
+                    break;
+                }
+                
+                drawSpriteAt(sprite_id, x, y);
+                sprites[sprite_id].x = x;
+                sprites[sprite_id].y = y;
+                sendAck(cmd, true, "Sprite moved");
+            } else {
+                sendAck(cmd, false, "Invalid move sprite data");
+            }
+            break;
+
         default:
             sendAck(cmd, false, "Unknown command");
             break;
     }
+}
+
+void CommandHandler::clearSpriteArea(int sprite_id) {
+    if (sprite_id < 0 || sprite_id >= MAX_SPRITES || !sprites[sprite_id].active) {
+        return;
+    }
+    
+    Sprite& sprite = sprites[sprite_id];
+    // Clear the area where the sprite was last drawn
+    dma_display->fillRect(sprite.last_x, sprite.last_y, sprite.width, sprite.height, 0x0000);
+}
+
+void CommandHandler::drawSpriteAt(int sprite_id, int x, int y) {
+    if (sprite_id < 0 || sprite_id >= MAX_SPRITES || !sprites[sprite_id].active) {
+        return;
+    }
+    
+    Sprite& sprite = sprites[sprite_id];
+    
+    // Clear the previous position if it was different
+    if (sprite.last_x != x || sprite.last_y != y) {
+        clearSpriteArea(sprite_id);
+    }
+    
+    // Draw the sprite at the new position
+    for (int py = 0; py < sprite.height; py++) {
+        for (int px = 0; px < sprite.width; px++) {
+            int pixel_index = (py * sprite.width + px) * 2;
+            if (pixel_index + 1 < sprite.width * sprite.height * 2) {
+                uint16_t color = (sprite.data[pixel_index] << 8) | sprite.data[pixel_index + 1];
+                dma_display->drawPixel(x + px, y + py, color);
+            }
+        }
+    }
+    
+    // Update position tracking
+    sprite.last_x = x;
+    sprite.last_y = y;
 } 

@@ -9,6 +9,17 @@
 #endif
 
 #define START_BYTE 0xAA
+#define MAX_SPRITES 16
+#define MAX_SPRITE_SIZE 64*64*2  // 64x64 pixels in RGB565 format
+
+// Sprite structure
+struct Sprite {
+    bool active;
+    int x, y;
+    int width, height;
+    uint8_t data[MAX_SPRITE_SIZE];
+    int last_x, last_y;  // For tracking position changes
+};
 
 enum CommandType : uint8_t {
     CMD_DRAW_PIXEL = 0x01,
@@ -24,6 +35,11 @@ enum CommandType : uint8_t {
     CMD_DRAW_FAST_VLINE = 0x0B,
     CMD_DRAW_FAST_HLINE = 0x0C,
     CMD_DRAW_BITMAP = 0x0D,
+    // Sprite commands
+    CMD_SET_SPRITE = 0x0E,
+    CMD_CLEAR_SPRITE = 0x0F,
+    CMD_DRAW_SPRITE = 0x10,
+    CMD_MOVE_SPRITE = 0x11,
 };
 
 class CommandHandler {
@@ -33,5 +49,8 @@ public:
 
 private:
     MatrixPanel_I2S_DMA* dma_display;
+    Sprite sprites[MAX_SPRITES];
     void sendAck(uint8_t cmd, bool success, const char* message = nullptr);
+    void clearSpriteArea(int sprite_id);
+    void drawSpriteAt(int sprite_id, int x, int y);
 }; 

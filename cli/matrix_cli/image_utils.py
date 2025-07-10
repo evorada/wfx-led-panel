@@ -6,13 +6,17 @@ from PIL import Image
 from typing import Tuple
 
 def load_and_process_image(
-    filename: str
+    filename: str,
+    target_width: int = None,
+    target_height: int = None
 ) -> Tuple[int, int, bytes]:
     """
     Load an image file and convert it to RGB bitmap data.
     
     Args:
         filename: Path to the image file
+        target_width: Optional target width for resizing
+        target_height: Optional target height for resizing
         
     Returns:
         Tuple of (width, height, rgb_data)
@@ -22,7 +26,13 @@ def load_and_process_image(
     """
     try:
         with Image.open(filename) as img:
-            width, height = img.size
+            # Resize if target dimensions provided
+            if target_width is not None and target_height is not None:
+                img = img.resize((target_width, target_height), Image.Resampling.LANCZOS)
+                width, height = target_width, target_height
+            else:
+                width, height = img.size
+            
             img = img.convert("RGB")
             rgb_data = img.tobytes()
             return width, height, rgb_data

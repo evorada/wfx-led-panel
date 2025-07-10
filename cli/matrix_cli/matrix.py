@@ -25,6 +25,11 @@ class MatrixDisplay:
     CMD_DRAW_FAST_VLINE = 0x0B
     CMD_DRAW_FAST_HLINE = 0x0C
     CMD_DRAW_BITMAP = 0x0D
+    # Sprite commands
+    CMD_SET_SPRITE = 0x0E
+    CMD_CLEAR_SPRITE = 0x0F
+    CMD_DRAW_SPRITE = 0x10
+    CMD_MOVE_SPRITE = 0x11
 
     def __init__(self, port: str, baudrate: int = 115200):
         """Initialize the matrix display client.
@@ -352,6 +357,87 @@ class MatrixDisplay:
             Tuple of (success, message)
         """
         return self._send_command(self.CMD_CLEAR, bytes([]))
+
+    def set_sprite(self, sprite_id: int, x: int, y: int, width: int, height: int, bitmap_data: bytes) -> Tuple[bool, str]:
+        """Set a sprite with image data.
+        
+        Args:
+            sprite_id: Sprite ID (0-15)
+            x: Initial X coordinate
+            y: Initial Y coordinate
+            width: Sprite width
+            height: Sprite height
+            bitmap_data: RGB888 data for sprite (width * height * 3 bytes)
+            
+        Returns:
+            Tuple of (success, message)
+        """
+        if not 0 <= sprite_id <= 15:
+            raise ValueError("Sprite ID must be between 0 and 15")
+        
+        expected_size = width * height * 3
+        if len(bitmap_data) != expected_size:
+            raise ValueError(f"Bitmap data size mismatch. Expected {expected_size} bytes, got {len(bitmap_data)}")
+        
+        # Convert RGB888 to RGB565
+        data = bytes()
+        for i in range(0, len(bitmap_data), 3):
+            if i + 2 < len(bitmap_data):
+                r, g, b = bitmap_data[i], bitmap_data[i+1], bitmap_data[i+2]
+                # Convert to RGB565: R(5 bits) + G(6 bits) + B(5 bits)
+                r565 = (r >> 3) & 0x1F  # 5 bits
+                g565 = (g >> 2) & 0x3F  # 6 bits  
+                b565 = (b >> 3) & 0x1F  # 5 bits
+                color = (r565 << 11) | (g565 << 5) | b565
+                color_h = int((color >> 8) & 0xFF)
+                color_l = int(color & 0xFF)
+                data = data + bytes([int(color_h) & 0xFF, int(color_l) & 0xFF])
+        
+        # Use flow control for sprite data
+        return self._send_bitmap_with_flow_control(self.CMD_SET_SPRITE, bytes([sprite_id, x, y, width, height]), data)
+
+    def clear_sprite(self, sprite_id: int) -> Tuple[bool, str]:
+        """Clear a sprite from memory and screen.
+        
+        Args:
+            sprite_id: Sprite ID (0-15)
+            
+        Returns:
+            Tuple of (success, message)
+        """
+        if not 0 <= sprite_id <= 15:
+            raise ValueError("Sprite ID must be between 0 and 15")
+        return self._send_command(self.CMD_CLEAR_SPRITE, bytes([sprite_id]))
+
+    def draw_sprite(self, sprite_id: int, x: int, y: int) -> Tuple[bool, str]:
+        """Draw a sprite at a specific location.
+        
+        Args:
+            sprite_id: Sprite ID (0-15)
+            x: X coordinate
+            y: Y coordinate
+            
+        Returns:
+            Tuple of (success, message)
+        """
+        if not 0 <= sprite_id <= 15:
+            raise ValueError("Sprite ID must be between 0 and 15")
+        return self._send_command(self.CMD_DRAW_SPRITE, bytes([sprite_id, x, y]))
+
+    def move_sprite(self, sprite_id: int, x: int, y: int) -> Tuple[bool, str]:
+        """Move a sprite to a new location and update its stored position.
+        
+        Args:
+            sprite_id: Sprite ID (0-15)
+            x: New X coordinate
+            y: New Y coordinate
+            
+        Returns:
+            Tuple of (success, message)
+        """
+        if not 0 <= sprite_id <= 15:
+            raise ValueError("Sprite ID must be between 0 and 15")
+        return self._send_command(self.CMD_MOVE_SPRITE, bytes([sprite_id, x, y]))
 
     @staticmethod
     def list_ports() -> List[Tuple[str, str, str]]:

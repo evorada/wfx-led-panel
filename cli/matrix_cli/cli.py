@@ -3,6 +3,9 @@ from rich.console import Console
 from rich.table import Table
 from .matrix import MatrixDisplay
 from .image_utils import load_and_process_image, create_test_pattern
+from .sprite_test import run_sprite_test
+from .sprite_image_example import run_sprite_image_example
+from .sprite_animation import run_sprite_animation
 
 console = Console()
 
@@ -21,6 +24,11 @@ CMD_FILL_RECT = 0x0A
 CMD_DRAW_FAST_VLINE = 0x0B
 CMD_DRAW_FAST_HLINE = 0x0C
 CMD_DRAW_BITMAP = 0x0D
+# Sprite commands
+CMD_SET_SPRITE = 0x0E
+CMD_CLEAR_SPRITE = 0x0F
+CMD_DRAW_SPRITE = 0x10
+CMD_MOVE_SPRITE = 0x11
 
 @click.group()
 @click.option('--port', required=True, help='Serial port (e.g., /dev/ttyUSB0)')
@@ -312,3 +320,114 @@ def clear(ctx):
             console.print(f"[red]✗ Error: {message}")
     except Exception as e:
         console.print(f"[red]Error: {e}")
+
+@cli.command()
+@click.argument('sprite_id', type=click.IntRange(0, 15))
+@click.argument('filename', type=click.Path(exists=True, file_okay=True, dir_okay=False))
+@click.option('--x', default=0, help='Initial X position (default: 0)')
+@click.option('--y', default=0, help='Initial Y position (default: 0)')
+@click.option('--width', default=8, help='Sprite width (default: 8)')
+@click.option('--height', default=8, help='Sprite height (default: 8)')
+@click.pass_context
+def set_sprite(ctx, sprite_id, filename, x, y, width, height):
+    """Set a sprite with image data from a file.
+    
+    Supports common image formats: PNG, JPG, JPEG, GIF, BMP, etc.
+    """
+    try:
+        # Load and process the image
+        console.print(f"[blue]Loading sprite image: {filename}")
+        img_width, img_height, rgb_data = load_and_process_image(filename, target_width=width, target_height=height)
+        
+        # Send to matrix
+        matrix = MatrixDisplay(ctx.obj['port'])
+        success, message = matrix.set_sprite(sprite_id, x, y, img_width, img_height, rgb_data)
+        
+        if success:
+            console.print(f"[green]✓ {message}")
+        else:
+            console.print(f"[red]✗ Error: {message}")
+    except Exception as e:
+        console.print(f"[red]Error: {e}")
+
+@cli.command()
+@click.argument('sprite_id', type=click.IntRange(0, 15))
+@click.pass_context
+def clear_sprite(ctx, sprite_id):
+    """Clear a sprite from memory and screen."""
+    try:
+        matrix = MatrixDisplay(ctx.obj['port'])
+        success, message = matrix.clear_sprite(sprite_id)
+        if success:
+            console.print(f"[green]✓ {message}")
+        else:
+            console.print(f"[red]✗ Error: {message}")
+    except Exception as e:
+        console.print(f"[red]Error: {e}")
+
+@cli.command()
+@click.argument('sprite_id', type=click.IntRange(0, 15))
+@click.argument('x', type=int)
+@click.argument('y', type=int)
+@click.pass_context
+def draw_sprite(ctx, sprite_id, x, y):
+    """Draw a sprite at a specific location."""
+    try:
+        matrix = MatrixDisplay(ctx.obj['port'])
+        success, message = matrix.draw_sprite(sprite_id, x, y)
+        if success:
+            console.print(f"[green]✓ {message}")
+        else:
+            console.print(f"[red]✗ Error: {message}")
+    except Exception as e:
+        console.print(f"[red]Error: {e}")
+
+@cli.command()
+@click.argument('sprite_id', type=click.IntRange(0, 15))
+@click.argument('x', type=int)
+@click.argument('y', type=int)
+@click.pass_context
+def move_sprite(ctx, sprite_id, x, y):
+    """Move a sprite to a new location and update its stored position."""
+    try:
+        matrix = MatrixDisplay(ctx.obj['port'])
+        success, message = matrix.move_sprite(sprite_id, x, y)
+        if success:
+            console.print(f"[green]✓ {message}")
+        else:
+            console.print(f"[red]✗ Error: {message}")
+    except Exception as e:
+        console.print(f"[red]Error: {e}")
+
+@cli.command()
+@click.pass_context
+def sprite_test(ctx):
+    """Test sprite functionality."""
+    try:
+        matrix = MatrixDisplay(ctx.obj['port'])
+        run_sprite_test(matrix)
+    except Exception as e:
+        console.print(f"[red]Error: {e}")
+
+@cli.command()
+@click.pass_context
+def sprite_image_example(ctx):
+    """Test sprite image functionality."""
+    try:
+        matrix = MatrixDisplay(ctx.obj['port'])
+        run_sprite_image_example(matrix)
+    except Exception as e:
+        console.print(f"[red]Error: {e}")
+
+@cli.command()
+@click.pass_context
+def sprite_animation(ctx):
+    """Test sprite animation functionality."""
+    try:
+        matrix = MatrixDisplay(ctx.obj['port'])
+        run_sprite_animation(matrix)
+    except Exception as e:
+        console.print(f"[red]Error: {e}")
+
+if __name__ == '__main__':
+    cli()
