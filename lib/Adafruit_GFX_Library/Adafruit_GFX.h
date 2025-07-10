@@ -1,6 +1,12 @@
-#pragma once
+#ifndef _ADAFRUIT_GFX_H
+#define _ADAFRUIT_GFX_H
 
-#include "../../include/sim/ArduinoCompat.h"
+#if ARDUINO >= 100
+#include "Arduino.h"
+#include "Print.h"
+#else
+#include "WProgram.h"
+#endif
 #include "gfxfont.h"
 
 // Forward declarations

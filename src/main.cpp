@@ -19,7 +19,9 @@
 #define PANEL_RES_Y 64 // Number of pixels tall of each INDIVIDUAL panel module.
 #define PANEL_CHAIN 1  // Total number of panels chained one to another
 
-#ifndef SIMULATOR
+#ifdef SIMULATOR
+SimMatrixPanel *dma_display = nullptr;
+#else
 #if defined(WF1)
 HUB75_I2S_CFG::i2s_pins _pins_x1 = {WF1_R1_PIN, WF1_G1_PIN, WF1_B1_PIN, WF1_R2_PIN, WF1_G2_PIN, WF1_B2_PIN, WF1_A_PIN, WF1_B_PIN, WF1_C_PIN, WF1_D_PIN, WF1_E_PIN, WF1_LAT_PIN, WF1_OE_PIN, WF1_CLK_PIN};
 #elif defined(WF2)
@@ -42,6 +44,7 @@ void setupMatrix()
 {
 #ifdef SIMULATOR
     dma_display = new SimMatrixPanel(PANEL_RES_X, PANEL_RES_Y);
+    dma_display->begin();
 #else
     // Module configuration
     HUB75_I2S_CFG mxconfig(
@@ -68,7 +71,12 @@ void setup()
 {
     setupMatrix();
 
-#ifndef SIMULATOR
+#ifdef SIMULATOR
+    std::string serial_port = Serial.init();
+    printf("Simulator ready. Serial port: %s\n", serial_port.c_str());
+
+    dma_display->present(); // Present the drawing immediately
+#else
     Serial.begin(115200);
     // BUTTON SETUP
     button.attach(PUSH_BUTTON_PIN, INPUT); // USE EXTERNAL PULL-UP
@@ -121,3 +129,29 @@ void loop()
 #endif
     commandHandler->handleCommand();
 }
+
+#ifdef SIMULATOR
+int main() {
+    setup();
+    
+    while (true) {
+        // Handle SDL events
+        SDL_Event event;
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_QUIT) {
+                SDL_Quit();
+                return 0;
+            }
+        }
+        
+        // Handle commands (non-blocking)
+        commandHandler->handleCommand();
+        
+        // Present the display regularly
+        dma_display->present();
+        
+        SDL_Delay(16); // ~60 FPS
+    }
+    return 0;
+}
+#endif

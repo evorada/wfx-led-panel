@@ -1,4 +1,7 @@
 #include "command_handler.h"
+#ifdef SIMULATOR
+#include "Arduino.h"
+#endif
 
 CommandHandler::CommandHandler(MatrixPanel_I2S_DMA *display) : dma_display(display)
 {
@@ -46,9 +49,9 @@ void CommandHandler::handleCommand()
     uint8_t cmd = Serial.read();
     uint8_t len = Serial.read();
 
-    while (Serial.available() < len)
-    {
-        delay(1);
+    // Check if we have enough data without blocking
+    if (Serial.available() < len) {
+        return; // Not enough data yet, try again later
     }
 
     uint8_t data[64];

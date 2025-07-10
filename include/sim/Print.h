@@ -17,6 +17,7 @@ public:
     String(const std::string& str) : str_(str) {}
     const char* c_str() const { return str_.c_str(); }
     operator const char*() const { return c_str(); }
+    size_t length() const { return str_.length(); }
     String& operator+=(const String& rhs) {
         str_ += rhs.str_;
         return *this;
@@ -71,5 +72,5 @@ private:
 #define F(x) __FlashStringHelper(x)
 
 // Arduino types
-typedef uint8_t boolean;
+typedef uint8_t byte;
 typedef uint16_t word; 

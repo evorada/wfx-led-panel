@@ -10,7 +10,7 @@ from PIL import Image
 from .matrix import MatrixDisplay
 
 
-def load_frames(directory: str = "resources/knight/idle") -> List[Image.Image]:
+def load_frames(directory: str = "../resources/knight/idle") -> List[Image.Image]:
     """Load all animation frames from the specified directory.
 
     Args:
