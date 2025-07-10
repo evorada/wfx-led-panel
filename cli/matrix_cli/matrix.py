@@ -24,6 +24,7 @@ class MatrixDisplay:
     CMD_FILL_RECT = 0x0A
     CMD_DRAW_FAST_VLINE = 0x0B
     CMD_DRAW_FAST_HLINE = 0x0C
+    CMD_DRAW_BITMAP = 0x0D
 
     def __init__(self, port: str, baudrate: int = 115200):
         """Initialize the matrix display client.
@@ -86,23 +87,67 @@ class MatrixDisplay:
         except Exception as e:
             return False, f"Error reading ACK: {str(e)}"
 
-    def _send_command(self, cmd: int, data: bytes) -> Tuple[bool, str]:
+    def _send_command(self, cmd: int, data: bytes, payload: bytes = None) -> Tuple[bool, str]:
         """Send a command to the matrix display and wait for acknowledgment.
         
         Args:
             cmd: Command byte
             data: Command data
-            
+            payload: Additional payload to be sent
         Returns:
             Tuple of (success, message)
         """
         with serial.Serial(self.port, self.baudrate, timeout=2) as ser:
-            # Send start byte, command, and data length
+            # Send start byte, command
             ser.write(bytes([self.START_BYTE, cmd, len(data)]))
             # Send data
             ser.write(data)
+            if payload:
+                ser.write(payload)
             # Wait for acknowledgment
             ser.flush()
+            return self._wait_for_ack(ser, cmd)
+
+    def _send_bitmap_with_flow_control(self, cmd: int, data: bytes, payload: bytes) -> Tuple[bool, str]:
+        """Send bitmap command with flow control for large payloads.
+        
+        Args:
+            cmd: Command byte
+            data: Command data (header)
+            payload: Bitmap payload data
+        Returns:
+            Tuple of (success, message)
+        """
+        with serial.Serial(self.port, self.baudrate, timeout=10) as ser:  # Longer timeout for large data
+            # Send start byte, command, and header data
+            ser.write(bytes([self.START_BYTE, cmd, len(data)]))
+            ser.write(data)
+            ser.flush()
+            
+            # Send payload in chunks with flow control
+            chunk_size = 128  # 64 pixels * 2 bytes per pixel
+            total_sent = 0
+            
+            while total_sent < len(payload):
+                # Calculate how much to send in this chunk
+                remaining = len(payload) - total_sent
+                current_chunk_size = min(chunk_size, remaining)
+                
+                # Send the chunk
+                chunk = payload[total_sent:total_sent + current_chunk_size]
+                ser.write(chunk)
+                ser.flush()
+                total_sent += current_chunk_size
+                
+                # Wait for ready signal (0xFF) if not the last chunk
+                if total_sent < len(payload):
+                    try:
+                        ready_signal = ser.read(1)
+                        if not ready_signal or ready_signal[0] != 0xFF:
+                            return False, f"Flow control error: expected 0xFF, got {ready_signal}"
+                    except Exception as e:
+                        return False, f"Error reading flow control signal: {str(e)}"
+
             return self._wait_for_ack(ser, cmd)
 
     def draw_pixel(self, x: int, y: int, r: int, g: int, b: int) -> Tuple[bool, str]:
@@ -195,6 +240,40 @@ class MatrixDisplay:
         if not all(0 <= c <= 255 for c in (r, g, b)):
             raise ValueError("Color components must be between 0 and 255")
         return self._send_command(self.CMD_DRAW_FAST_HLINE, bytes([x, y, width, r, g, b]))
+
+    def draw_bitmap(self, x: int, y: int, width: int, height: int, bitmap_data: bytes) -> Tuple[bool, str]:
+        """Draw bitmap at specified location using RGB565 format.
+        
+        Args:
+            x: X coordinate
+            y: Y coordinate
+            width: Bitmap width
+            height: Bitmap height
+            bitmap_data: RGB888 data for bitmap (width * height * 3 bytes)
+            
+        Returns:
+            Tuple of (success, message)
+        """
+        expected_size = width * height * 3
+        if len(bitmap_data) != expected_size:
+            raise ValueError(f"Bitmap data size mismatch. Expected {expected_size} bytes, got {len(bitmap_data)}")
+        
+        # Convert RGB888 to RGB565
+        data = bytes()
+        for i in range(0, len(bitmap_data), 3):
+            if i + 2 < len(bitmap_data):
+                r, g, b = bitmap_data[i], bitmap_data[i+1], bitmap_data[i+2]
+                # Convert to RGB565: R(5 bits) + G(6 bits) + B(5 bits)
+                r565 = (r >> 3) & 0x1F  # 5 bits
+                g565 = (g >> 2) & 0x3F  # 6 bits  
+                b565 = (b >> 3) & 0x1F  # 5 bits
+                color = (r565 << 11) | (g565 << 5) | b565
+                color_h = int((color >> 8) & 0xFF)
+                color_l = int(color & 0xFF)
+                data = data + bytes([int(color_h) & 0xFF, int(color_l) & 0xFF])
+        
+        # Use flow control for bitmap data
+        return self._send_bitmap_with_flow_control(self.CMD_DRAW_BITMAP, bytes([x, y, width, height]), data)
 
     def set_brightness(self, brightness: int) -> Tuple[bool, str]:
         """Set display brightness.

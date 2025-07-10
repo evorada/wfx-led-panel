@@ -176,6 +176,69 @@ void CommandHandler::handleCommand() {
             }
             break;
 
+        case CMD_DRAW_BITMAP:
+            if (len >= 4) {
+                int x = data[0];
+                int y = data[1];
+                int width = data[2];
+                int height = data[3];
+
+                int payload_size = width * height * 2; // RGB565 = 2 bytes per pixel
+                uint8_t bitmap_data[payload_size];
+                
+                // Read and draw bitmap data pixel by pixel as it arrives
+                int total_read = 0;
+                int timeout_ms = 5000; // 5 second timeout
+                unsigned long start_time = millis();
+                uint8_t pixel_buffer[2]; // 2 bytes for RGB565 pixel
+                
+                while (total_read < payload_size) {
+                    // Check for timeout
+                    if (millis() - start_time > timeout_ms) {
+                        sendAck(cmd, false, "Bitmap data read timeout");
+                        break;
+                    }
+                    
+                    // Wait for data to be available and manage buffer
+                    if (Serial.available() < 2) {
+                        // If buffer is getting full, flush it to make room
+                        if (Serial.available() > 0) {
+                            Serial.flush();
+                        }
+                        delay(1);
+                        continue;
+                    }
+                    
+                    // Read one pixel (2 bytes)
+                    int read_size = Serial.readBytes(pixel_buffer, 2);
+                    if (read_size == 2) {
+                        // Calculate pixel position
+                        int pixel_index = total_read / 2;
+                        int py = pixel_index / width;
+                        int px = pixel_index % width;
+                        
+                        // Only draw if within bounds
+                        if (py < height && px < width) {
+                            // Read RGB565 color (2 bytes)
+                            uint16_t color = (pixel_buffer[0] << 8) | pixel_buffer[1];
+                            dma_display->drawPixel(x + px, y + py, color);
+                        }
+                        total_read += 2;
+                        
+                        // Send simple flow control every 64 pixels to keep data flowing
+                        // But not after the last chunk to avoid interfering with final ACK
+                        if ((total_read / 2) % 64 == 0 && total_read < payload_size - 2) {
+                            // Send a simple "ready" byte to keep the sender going
+                            Serial.write(0xFF); // Simple ready signal (different from ACK protocol)
+                        }
+                    }
+                }
+                sendAck(cmd, true, "");
+            } else {
+                sendAck(cmd, false, "Invalid bitmap header");
+            }
+            break;
+
         default:
             sendAck(cmd, false, "Unknown command");
             break;

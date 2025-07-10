@@ -23,6 +23,7 @@ enum CommandType : uint8_t {
     CMD_FILL_RECT = 0x0A,
     CMD_DRAW_FAST_VLINE = 0x0B,
     CMD_DRAW_FAST_HLINE = 0x0C,
+    CMD_DRAW_BITMAP = 0x0D,
 };
 
 class CommandHandler {

@@ -2,6 +2,7 @@ import click
 from rich.console import Console
 from rich.table import Table
 from .matrix import MatrixDisplay
+from .image_utils import load_and_process_image, create_test_pattern
 
 console = Console()
 
@@ -19,6 +20,7 @@ CMD_SET_CURSOR = 0x09
 CMD_FILL_RECT = 0x0A
 CMD_DRAW_FAST_VLINE = 0x0B
 CMD_DRAW_FAST_HLINE = 0x0C
+CMD_DRAW_BITMAP = 0x0D
 
 @click.group()
 @click.option('--port', required=True, help='Serial port (e.g., /dev/ttyUSB0)')
@@ -41,6 +43,60 @@ def ports():
         table.add_row(port, desc, hwid)
     
     console.print(table)
+
+@cli.command()
+@click.argument('filename', type=click.Path(exists=True, file_okay=True, dir_okay=False))
+@click.option('--x', default=0, help='X position (default: 0)')
+@click.option('--y', default=0, help='Y position (default: 0)')
+@click.pass_context
+def bitmap(ctx, filename, x, y):
+    """Display an image file on the matrix display.
+    
+    Supports common image formats: PNG, JPG, JPEG, GIF, BMP, etc.
+    """
+    try:
+        # Load and process the image
+        console.print(f"[blue]Loading image: {filename}")
+        width, height, rgb_data = load_and_process_image(filename)
+        
+        # Send to matrix
+        matrix = MatrixDisplay(ctx.obj['port'])
+        success, message = matrix.draw_bitmap(x, y, width, height, rgb_data)
+        
+        if success:
+            console.print(f"[green]✓ {message}")
+        else:
+            console.print(f"[red]✗ Error: {message}")
+    except Exception as e:
+        console.print(f"[red]Error: {e}")
+
+@cli.command()
+@click.argument('pattern', type=click.Choice(['gradient', 'rainbow', 'checkerboard']))
+@click.option('--x', default=0, help='X position (default: 0)')
+@click.option('--y', default=0, help='Y position (default: 0)')
+@click.option('--width', default=32, help='Pattern width (default: 32)')
+@click.option('--height', default=16, help='Pattern height (default: 16)')
+@click.pass_context
+def pattern(ctx, pattern, x, y, width, height):
+    """Display a test pattern on the matrix display."""
+    try:
+        # Create test pattern
+        console.print(f"[blue]Creating {pattern} pattern: {width}x{height}")
+        width, height, rgb_data = create_test_pattern(width, height, pattern)
+        
+        # Send to matrix
+        matrix = MatrixDisplay(ctx.obj['port'])
+        success, message = matrix.draw_bitmap(x, y, width, height, rgb_data)
+        
+        if success:
+            console.print(f"[green]✓ {message}")
+        else:
+            console.print(f"[red]✗ Error: {message}")
+            
+    except ValueError as e:
+        console.print(f"[red]Error: {e}")
+    except Exception as e:
+        console.print(f"[red]Error: {e}")
 
 @cli.command()
 @click.argument('x', type=int)
