@@ -5,50 +5,43 @@ Image processing utilities for matrix display.
 from PIL import Image
 from typing import Tuple
 
-def load_and_process_image(
-    filename: str,
-    target_width: int = None,
-    target_height: int = None
-) -> Tuple[int, int, bytes]:
+
+def load_and_process_image(filename: str) -> Tuple[int, int, bytes]:
     """
     Load an image file and convert it to RGB bitmap data.
-    
+
     Args:
         filename: Path to the image file
-        target_width: Optional target width for resizing
-        target_height: Optional target height for resizing
-        
+
     Returns:
         Tuple of (width, height, rgb_data)
-        
+
     Raises:
         ValueError: If image cannot be loaded or processed
     """
     try:
         with Image.open(filename) as img:
-            # Resize if target dimensions provided
-            if target_width is not None and target_height is not None:
-                img = img.resize((target_width, target_height), Image.Resampling.LANCZOS)
-                width, height = target_width, target_height
-            else:
-                width, height = img.size
-            
+            width, height = img.size
+
             img = img.convert("RGB")
             rgb_data = img.tobytes()
             return width, height, rgb_data
-            
+
     except Exception as e:
         raise ValueError(f"Failed to load image '{filename}': {str(e)}")
 
-def create_test_pattern(width: int, height: int, pattern_type: str = "gradient") -> Tuple[int, int, bytes]:
+
+def create_test_pattern(
+    width: int, height: int, pattern_type: str = "gradient"
+) -> Tuple[int, int, bytes]:
     """
     Create a test pattern for testing the display.
-    
+
     Args:
         width: Pattern width
         height: Pattern height
         pattern_type: Type of pattern ("gradient", "rainbow", "checkerboard")
-        
+
     Returns:
         Tuple of (width, height, rgb_data)
     """
@@ -62,7 +55,7 @@ def create_test_pattern(width: int, height: int, pattern_type: str = "gradient")
                 b = int(255 * (x + y) / (width + height))
                 data.extend([r, g, b])
         return width, height, bytes(data)
-    
+
     elif pattern_type == "rainbow":
         # Create rainbow pattern
         data = []
@@ -87,7 +80,7 @@ def create_test_pattern(width: int, height: int, pattern_type: str = "gradient")
                     r, g, b = c, 0, x_h
                 data.extend([r, g, b])
         return width, height, bytes(data)
-    
+
     elif pattern_type == "checkerboard":
         # Create checkerboard pattern
         data = []
@@ -99,6 +92,6 @@ def create_test_pattern(width: int, height: int, pattern_type: str = "gradient")
                     r, g, b = 0, 0, 0  # Black
                 data.extend([r, g, b])
         return width, height, bytes(data)
-    
+
     else:
-        raise ValueError(f"Unknown pattern type: {pattern_type}") 
+        raise ValueError(f"Unknown pattern type: {pattern_type}")

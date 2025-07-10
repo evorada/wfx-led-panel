@@ -1,14 +1,14 @@
 // -------------------------------------------
 // WF2 GPIO Configuration
-// Note: Whilst the WF-2 has two HUB75 ('75EX1' and '75EX2') connectors. It is NOT possible to drive BOTH at once. 
+// Note: Whilst the WF-2 has two HUB75 ('75EX1' and '75EX2') connectors. It is NOT possible to drive BOTH at once.
 //       You can only use wither the 75EX1 or 75EX1 port at any time to drive a single HUB75 panel, or a chain of panels.
 
-#define RUN_LED_PIN       40
-#define PUSH_BUTTON_PIN   11
+#define RUN_LED_PIN 40
+#define PUSH_BUTTON_PIN 11
 
 // I2C RTC BM8563 I2C port
-#define BM8563_I2C_SDA    41
-#define BM8563_I2C_SCL    42
+#define BM8563_I2C_SDA 41
+#define BM8563_I2C_SCL 42
 
 // HUB75 Pins
 #define WF2_X1_R1_PIN 2
@@ -38,5 +38,3 @@
 // USB
 #define WF2_USB_DM_PIN 19
 #define WF2_USB_DP_PIN 20
-
-

@@ -10,18 +10,20 @@
 
 #define START_BYTE 0xAA
 #define MAX_SPRITES 16
-#define MAX_SPRITE_SIZE 64*64*2  // 64x64 pixels in RGB565 format
+#define MAX_SPRITE_SIZE 64 * 64 * 2 // 64x64 pixels in RGB565 format
 
 // Sprite structure
-struct Sprite {
+struct Sprite
+{
     bool active;
     int x, y;
     int width, height;
     uint8_t data[MAX_SPRITE_SIZE];
-    int last_x, last_y;  // For tracking position changes
+    int last_x, last_y; // For tracking position changes
 };
 
-enum CommandType : uint8_t {
+enum CommandType : uint8_t
+{
     CMD_DRAW_PIXEL = 0x01,
     CMD_FILL_SCREEN = 0x02,
     CMD_DRAW_LINE = 0x03,
@@ -42,15 +44,16 @@ enum CommandType : uint8_t {
     CMD_MOVE_SPRITE = 0x11,
 };
 
-class CommandHandler {
+class CommandHandler
+{
 public:
-    CommandHandler(MatrixPanel_I2S_DMA* display);
+    CommandHandler(MatrixPanel_I2S_DMA *display);
     void handleCommand();
 
 private:
-    MatrixPanel_I2S_DMA* dma_display;
+    MatrixPanel_I2S_DMA *dma_display;
     Sprite sprites[MAX_SPRITES];
-    void sendAck(uint8_t cmd, bool success, const char* message = nullptr);
+    void sendAck(uint8_t cmd, bool success, const char *message = nullptr);
     void clearSpriteArea(int sprite_id);
     void drawSpriteAt(int sprite_id, int x, int y);
-}; 
+};

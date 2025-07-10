@@ -1,5 +1,5 @@
 #pragma once
 
 #ifndef HWCDCSerial
-  #define HWCDCSerial Serial0
+#define HWCDCSerial Serial0
 #endif
