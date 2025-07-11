@@ -69,6 +69,7 @@ void setupMatrix()
 
 void setup()
 {
+    Serial.begin(115200);
     setupMatrix();
 
 #ifdef SIMULATOR
@@ -77,7 +78,6 @@ void setup()
 
     dma_display->present(); // Present the drawing immediately
 #else
-    Serial.begin(115200);
     // BUTTON SETUP
     button.attach(PUSH_BUTTON_PIN, INPUT); // USE EXTERNAL PULL-UP
     button.interval(5);                    // DEBOUNCE INTERVAL IN MILLISECONDS
