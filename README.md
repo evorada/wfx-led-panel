@@ -1,4 +1,6 @@
-# ESP32 LED Matrix GPU
+# HD-WFx LED Matrix custom firmware
+
+![](resources/64x64panel.jpeg)
 
 This project provides custom firmware for the **Huidu HD-WF1** and **HD-WF2** boards running ESP32 to control HUB75 LED matrix panels via the ESP32-HUB75-MatrixPanel-DMA library. The ESP32 acts as a basic GPU, listening for drawing commands over Serial and rendering graphics accordingly.
 
@@ -107,16 +109,20 @@ pio run -e huidu_hd_wf1
 pio run -e huidu_hd_wf2
 
 # Build simulator (for testing)
-pio run -e simulator
+make simulator
 ```
 
 ### Testing
 
 The project includes a simulator environment for testing without hardware:
 
+![](resources/simulator.png)
+
 ```bash
-pio run -e simulator
+make simulator
+./build/wfx-led-panel-sim
 ```
+It will create a stty that can be connected to with the CLI or custom protocol implementation to facilitate the testing.
 
 ## Dependencies
 
